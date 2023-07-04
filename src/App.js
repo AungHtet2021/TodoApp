@@ -1,109 +1,121 @@
 import './reset.css';
 import './App.css';
+import TodoForm from './components/TodoForm';
+import TodoList from './components/TodoList.js';
+import TodoFilters from './components/TodoFilters.js';
+import CheckAllAndRemaining from './components/CheckAllAndRemaining.js';
+import ClearComponentBtn from './components/ClearComponentBtn.js';
+import { useCallback, useEffect, useState } from 'react';
 
 function App() {
+
+  let [todos,setTodos] = useState([]);
+  let [filterTodos,setFilterTodos] = useState(todos);
+
+
+  useEffect(()=>{
+    fetch('http://localhost:3001/todos')
+    .then(res =>res.json())
+    .then((todos)=>{
+      setTodos(todos);
+      setFilterTodos(todos);
+    })
+  },[])
+
+  let filterBy = useCallback(
+    (filter)=>{
+      if(filter == 'All'){
+        setFilterTodos(todos);
+      }
+      if(filter == 'Active'){
+        setFilterTodos(todos.filter(t => !t.completed))
+      }
+      if(filter == 'Completed'){
+        setFilterTodos(todos.filter(t => t.completed))
+      }
+    },[todos]
+  )
+
+  let addTodo = (todo ) => {
+    //update data at server side
+    fetch('http://localhost:3001/todos',{
+          method : "POST",
+          headers : {
+            'Content-Type' : 'application/json'
+          },
+          body : JSON.stringify(todo)
+    })
+    setTodos(prevState => [...prevState,todo])
+  }
+
+  let deleteTodo=(todoId)=>{
+
+    fetch(`http://localhost:3001/todos/${todoId}`,{
+          method : "DELETE"
+    })
+    setTodos(prevState => {
+      return prevState.filter((todo=>{
+        return todo.id != todoId
+      }));
+    })
+  }
+
+  let updateTodo =(todo) =>{
+    fetch(`http://localhost:3001/todos/${todo.id}`,{
+      method : "PATCH",
+      headers : {
+        'Content-Type' : 'application/json'
+      },
+      body : JSON.stringify(todo)
+})
+    setTodos(prevState => {
+      return prevState.map((t=>{
+        if(t.id == todo.id){
+          return todo;
+        }
+        return t;
+      }));
+    })
+  }
+
+  let remainingCount = todos.filter(t => !t.completed).length;
+
+  let checkAll =()=>{
+
+    todos.forEach(t => {
+      t.completed =true;
+      updateTodo(t);
+    })
+    setTodos((prevState)=>{
+      return prevState.map(t =>{
+        return {...t,completed :true};
+      })
+
+    })
+  }
+
+  let clearCompleted = ()=>{
+    todos.forEach(t =>{
+      if(t.completed){
+        deleteTodo(t.id)
+      }
+    })
+    setTodos((prevState)=>{
+      return prevState.filter(t => !t.completed)
+    })
+  }
+
+
   return (
     <div className="todo-app-container">
       <div className="todo-app">
-        <h2>Todo App</h2>
-        <form action="#">
-          <input
-            type="text"
-            className="todo-input"
-            placeholder="What do you need to do?"
-          />
-        </form>
-
-        <ul className="todo-list">
-          <li className="todo-item-container">
-            <div className="todo-item">
-              <input type="checkbox" />
-              <span className="todo-item-label">Finish React Series</span>
-              {/* <input type="text" className="todo-item-input" value="Finish React Series" /> */}
-            </div>
-            <button className="x-button">
-              <svg
-                className="x-button-icon"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </li>
-          <li className="todo-item-container">
-            <div className="todo-item">
-              <input type="checkbox" />
-              <span className="todo-item-label line-through">
-                Go to Grocery
-              </span>
-              {/* <input type="text" className="todo-item-input" value="Go to Grocery" /> */}
-            </div>
-            <button className="x-button">
-              <svg
-                className="x-button-icon"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </li>
-          <li className="todo-item-container">
-            <div className="todo-item">
-              <input type="checkbox" />
-              <span className="todo-item-label">Do other thing</span>
-              {/* <input type="text" className="todo-item-input" value="Do other thing /> */}
-            </div>
-            <button className="x-button">
-              <svg
-                className="x-button-icon"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </li>
-        </ul>
-
-        <div className="check-all-container">
-          <div>
-            <div className="button">Check All</div>
-          </div>
-
-          <span>3 items remaining</span>
-        </div>
-
+        <h2>Todo App</h2>    
+        <TodoForm addTodo={ addTodo}/>    
+        <TodoList todos={filterTodos} deleteTodo={deleteTodo} updateTodo={updateTodo}/>
+        <CheckAllAndRemaining remainingCount={remainingCount} checkAll={checkAll}/>
         <div className="other-buttons-container">
-          <div>
-            <button className="button filter-button filter-button-active">
-              All
-            </button>
-            <button className="button filter-button">Active</button>
-            <button className="button filter-button">Completed</button>
-          </div>
-          <div>
-            <button className="button">Clear completed</button>
-          </div>
+        <TodoFilters filterBy={filterBy}/>
+        <ClearComponentBtn clearCompleted={clearCompleted}/>
         </div>
       </div>
     </div>
